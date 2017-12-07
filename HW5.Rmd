@@ -42,14 +42,17 @@ knitr::opts_chunk$set(echo = TRUE)
     x_lim.upper <- 10
     noise.mean <- 0
     noise.sds <- c(10, 500, 1.5)
+    linear_models <- c()
     
     for (i in 1:length(Fs)) {
       f <- Fs[[i]]
       noise.sd <- noise.sds[i]
-      for (N in Ns) {
-        print(N)
+      for (j in 1:length(Ns)) {
+        N <- Ns[j]
         sample_x <- runif(n = N, min = x_lim.lower, max = x_lim.upper)
         sample_y <- f(sample_x) + rnorm(N, mean = noise.mean, sd = noise.sd)
+        sim.lm <- lm(sample_y ~ sample_x)
+        linear_models[[length(Ns)*(i-1) + j]] <- sim.lm
         plot(sample_x, sample_y)
       }
     }
@@ -60,8 +63,17 @@ knitr::opts_chunk$set(echo = TRUE)
         i.	Predict y-hat at several different locations using a confidence interval.
         ii.	Predict the beta coefficients for a linear model using a confidence interval.
         iii. Find the MSE (to estimate sigma^2)
+        iv. Test to see whether the beta(s) are significant
         
     ```{r}
+    y_hat.locations <- data.frame(x = base::sample(x_lim.lower:x_lim.upper, size = 4, replace = FALSE))
+    for (i in 1:length(linear_models)) {
+      model <- linear_models[[i]]
+      predict(model, y_hat.locations, interval = 'prediction')
+      
+      #confint(model)
+    }
+
     #i
     
     #ii
@@ -70,17 +82,20 @@ knitr::opts_chunk$set(echo = TRUE)
     
     ```
         
-        iv. Test to see whether the beta(s) are significant
     d. Which of the above tasks were affected by the nonlinear relationship?
+    
+    ```{r}
+    
+    ```
+    
     e. After you have experimented with the effects of different model structures, true parameter values, and sample sizes, let's repeat the simulation but test yourself to see whether you can detect non-linearity.
         i. Have R randomly choose whether to simulate data from a true linear model or a true nonlinear model.
         ii. Simulate data accordingly and display informal/ formal diagnostics as appropriate.
-
-        ```{r}
-        
-        ``` 
-
         iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated -- just whether they are violated to such an extent that your ability to use the model is compromised)
+
+    ```{r}
+    
+    ```
 
 __Aside:__ Many of the issues you end up facing with a nonlinear relationship can also be seen if an important predictor is excluded from the model. If you have extra time, feel free to play with this issue as well (optional).
 
