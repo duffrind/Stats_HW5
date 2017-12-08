@@ -35,6 +35,11 @@ knitr::opts_chunk$set(echo = TRUE)
     ``` 
     
     b.	Try simulations with a small sample size (e.g. 20), a medium sample size (e.g. n= 100), and a large sample size (e.g. n = 5000).
+    c.	For each simulation, 
+        i.	Predict y-hat at several different locations using a confidence interval.
+        ii.	Predict the beta coefficients for a linear model using a confidence interval.
+        iii. Find the MSE (to estimate sigma^2)
+        iv. Test to see whether the beta(s) are significant
     
     ```{r}
     Ns <- c(20,100,5000) # small, medium, large
@@ -42,51 +47,91 @@ knitr::opts_chunk$set(echo = TRUE)
     x_lim.upper <- 10
     noise.mean <- 0
     noise.sds <- c(10, 500, 1.5)
-    linear_models <- c()
+    
+    sample_x.list <- c()
+    sample_y.list <- c()
+    
+    y_hat.locations <- data.frame(sample_x = base::sample(x_lim.lower:x_lim.upper, size = 4, replace = FALSE)) # Use same variable name as predictor in lm
     
     for (i in 1:length(Fs)) {
       f <- Fs[[i]]
       noise.sd <- noise.sds[i]
+      print("")
+      print("NEW FUNCTION")
+      
       for (j in 1:length(Ns)) {
         N <- Ns[j]
+        print("")
+        print(sprintf("N = %d", N))
+        
         sample_x <- runif(n = N, min = x_lim.lower, max = x_lim.upper)
         sample_y <- f(sample_x) + rnorm(N, mean = noise.mean, sd = noise.sd)
+      
+        # Calculate model
         sim.lm <- lm(sample_y ~ sample_x)
-        linear_models[[length(Ns)*(i-1) + j]] <- sim.lm
+        
+        # Grab OLS coefficients
+        intercept.estimate <- sim.lm$coefficients[1]
+        beta1.estimate <- sim.lm$coefficients[2]
+        
+        # Plot regression line through data
         plot(sample_x, sample_y)
+        abline(intercept.estimate, beta1.estimate, lwd = 5, col = "red")
+        
+        # Part (i)
+        print("Prediction at:")
+        print(y_hat.locations$sample_x)
+        print(" is ")
+        print(predict.lm(sim.lm, y_hat.locations, interval = "prediction"))
+        
+        # Part (ii)
+        print("Confidence interval of coefficients:")
+        print(confint(sim.lm, c("(Intercept)", "sample_x"), level = 0.95))
+        
+        # Part (iii)
+        s <- summary(sim.lm)
+        residuals <- s$residuals
+        mse <- mean(residuals^2)
+        print(sprintf("MSE: %f", mse))
+      
+        # Part (iv)
+        p.prime <- 2
+        n <- length(sample_x)
+        res.df <- n - p.prime
+        alpha <- 0.05
+        
+        
+        intercept.se <- s$coefficients[1,2]
+        intercept.t.val <- (intercept.estimate - 0) / intercept.se 
+        #intercept.t.val <- s$coefficients[1,3]
+        intercept.p.val <- 2 * pt(abs(intercept.t.val), res.df, lower.tail = FALSE)
+        #intercept.p.val <- s$coefficients[1,4]
+        if (intercept.p.val < alpha) {
+          print(sprintf("Intercept IS significant at the %.3f level", alpha))
+        } else {
+          print(sprintf("Intercept IS NOT significant at the %.3f level", alpha))
+        }
+        
+        
+        beta1.se <- s$coefficients[2,2]
+        beta1.t.val <- (beta1.estimate - 0) / beta1.se 
+        #beta1.t.val <- s$coefficients[2,3]
+        beta1.p.val <- 2 * pt(abs(beta1.t.val), res.df, lower.tail = FALSE)
+        #beta1.p.val <- s$coefficients[2,4]
+        if (beta1.p.val < alpha) {
+          print(sprintf("Slope IS significant at the %.3f level", alpha))
+        } else {
+          print(sprintf("Slope IS NOT significant at the %.3f level", alpha))
+        }
       }
     }
     
     ```
-    
-    c.	For each simulation, 
-        i.	Predict y-hat at several different locations using a confidence interval.
-        ii.	Predict the beta coefficients for a linear model using a confidence interval.
-        iii. Find the MSE (to estimate sigma^2)
-        iv. Test to see whether the beta(s) are significant
-        
-    ```{r}
-    y_hat.locations <- data.frame(x = base::sample(x_lim.lower:x_lim.upper, size = 4, replace = FALSE))
-    for (i in 1:length(linear_models)) {
-      model <- linear_models[[i]]
-      predict(model, y_hat.locations, interval = 'prediction')
-      
-      #confint(model)
-    }
 
-    #i
-    
-    #ii
-    
-    #iii
-    
-    ```
-        
     d. Which of the above tasks were affected by the nonlinear relationship?
     
-    ```{r}
+    #All of the above tasks are do-able with any type of data, no matter what relationship if any the predictor and response variables have. 
     
-    ```
     
     e. After you have experimented with the effects of different model structures, true parameter values, and sample sizes, let's repeat the simulation but test yourself to see whether you can detect non-linearity.
         i. Have R randomly choose whether to simulate data from a true linear model or a true nonlinear model.
@@ -98,19 +143,6 @@ knitr::opts_chunk$set(echo = TRUE)
     ```
 
 __Aside:__ Many of the issues you end up facing with a nonlinear relationship can also be seen if an important predictor is excluded from the model. If you have extra time, feel free to play with this issue as well (optional).
-
-
-```{r}
-# Sample code to get started
-n <- 20
-b0 <- 10
-b1 <- 2
-
-x <- runif(n, 0, 10)
-eps <- 3 * rnorm(n)
-y <- b0 - b1 * (x - 5)^2 + eps
-
-```
 
 2.	Non-normal errors
     a.	Simulate errors from a variety of different non-normal distributions (e.g. gamma, poisson). Make sure to shift the errors over so that they are still centered at 0.
