@@ -20,7 +20,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Question 1 (Non-linear Relationships)
 
-    a.	Simulate data for a variety of different non-linear relationships (e.g. polynomial, exponential, sinusoidal).
+    #a.	Simulate data for a variety of different non-linear relationships (e.g. polynomial, exponential, sinusoidal).
     
     ```{r}
     polynomial <- function(x) {
@@ -35,12 +35,12 @@ knitr::opts_chunk$set(echo = TRUE)
     Fs <- c(polynomial, exponential, sinusoidal)
     ``` 
     
-    b.	Try simulations with a small sample size (e.g. 20), a medium sample size (e.g. n= 100), and a large sample size (e.g. n = 5000).
-    c.	For each simulation, 
-        i.	Predict y-hat at several different locations using a confidence interval.
-        ii.	Predict the beta coefficients for a linear model using a confidence interval.
-        iii. Find the MSE (to estimate sigma^2)
-        iv. Test to see whether the beta(s) are significant
+    #b.	Try simulations with a small sample size (e.g. 20), a medium sample size (e.g. n= 100), and a large sample size (e.g. n = 5000).
+    #c.	For each simulation, 
+        #i.	Predict y-hat at several different locations using a confidence interval.
+        #ii.	Predict the beta coefficients for a linear model using a confidence interval.
+        #iii. Find the MSE (to estimate sigma^2)
+        #iv. Test to see whether the beta(s) are significant
     
     ```{r}
     Ns <- c(20,100,5000) # small, medium, large
@@ -129,14 +129,14 @@ knitr::opts_chunk$set(echo = TRUE)
     
     ```
 
-    d. Which of the above tasks were affected by the nonlinear relationship?
+    #d. Which of the above tasks were affected by the nonlinear relationship?
     
-    #All of the above tasks are do-able with any type of data, no matter what relationship if any the predictor and response variables have. 
+    The prediction of the y-hat confidence interval is unaffected by a true nonlinear relationship. The confidence interval for the beta coefficients (as far as whether the interval for the slope contains 0), and the related statistical test for their significance, was affected. In quadratic relationships, x and y are uncorrelated (as expected), and so the slope of a linear model is not statistically significant. However, in an exponential model the linear model is useful in predicting the response variable, and the statistical tests reflect that. Strangely in the sinusoidal model, the slope was determined to be significant even though it shouldn't be.
     
     
-    e. After you have experimented with the effects of different model structures, true parameter values, and sample sizes, let's repeat the simulation but test yourself to see whether you can detect non-linearity.
-        i. Have R randomly choose whether to simulate data from a true linear model or a true nonlinear model.
-        ii. Simulate data accordingly and display informal/ formal diagnostics as appropriate
+    #e. After you have experimented with the effects of different model structures, true parameter values, and sample sizes, let's repeat the simulation but test yourself to see whether you can detect non-linearity.
+        #i. Have R randomly choose whether to simulate data from a true linear model or a true nonlinear model.
+        #ii. Simulate data accordingly and display informal/ formal diagnostics as appropriate
 
     ```{r}
     linear <- function(x) {
@@ -160,9 +160,9 @@ knitr::opts_chunk$set(echo = TRUE)
     intercept.estimate <- sim.lm$coefficients[1]
     beta1.estimate <- sim.lm$coefficients[2]
     
-    # Plot regression line through data
-    plot(sample_x, sample_y)
-    abline(intercept.estimate, beta1.estimate, lwd = 5, col = "red")
+    # Don't plot regression line, for testing self
+    #plot(sample_x, sample_y)
+    #abline(intercept.estimate, beta1.estimate, lwd = 5, col = "red")
     
     # Part (i)
     print("Prediction at:")
@@ -211,7 +211,12 @@ knitr::opts_chunk$set(echo = TRUE)
     }
     ```
 
-        iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated -- just whether they are violated to such an extent that your ability to use the model is compromised)
+        I can make educated guesses based on the significance tests of the slope.
+
+        #iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated -- just whether they are violated to such an extent that your ability to use the model is compromised)
+        
+        The linear model is not compromised in any way no matter the underlying data, however it may not be a useful fit.
+        
         
         
 
