@@ -1,6 +1,6 @@
 ---
 title: "Homework 5"
-author: "Statistical Inference 1"
+author: "Beau Britain, David Duffrin, Noah Johnson, Roger Filmyer, Stephanie Rivera"
 date: "11/22/2017"
 output: html_document
 ---
