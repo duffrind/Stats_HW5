@@ -18,7 +18,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Questions
 
-1.	Nonlinear relationship
+## Question 1 (Non-linear Relationships)
+
     a.	Simulate data for a variety of different non-linear relationships (e.g. polynomial, exponential, sinusoidal).
     
     ```{r}
@@ -135,37 +136,99 @@ knitr::opts_chunk$set(echo = TRUE)
     
     e. After you have experimented with the effects of different model structures, true parameter values, and sample sizes, let's repeat the simulation but test yourself to see whether you can detect non-linearity.
         i. Have R randomly choose whether to simulate data from a true linear model or a true nonlinear model.
-        ii. Simulate data accordingly and display informal/ formal diagnostics as appropriate.
-        iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated -- just whether they are violated to such an extent that your ability to use the model is compromised)
+        ii. Simulate data accordingly and display informal/ formal diagnostics as appropriate
 
     ```{r}
+    linear <- function(x) {
+      return (2*x + 10)
+    }
+    Fs[[4]] <- linear
     
+    N <- 20 # small sample size
+    noise.mean <- 0
+    noise.sd <- 10
+    
+    model <- sample(Fs, size=1)[[1]] # 1 in 4 chance of a linear model
+    
+    sample_x <- runif(n = N, min = x_lim.lower, max = x_lim.upper)
+    sample_y <- model(sample_x) + rnorm(N, mean = noise.mean, sd = noise.sd)
+  
+    # Calculate model
+    sim.lm <- lm(sample_y ~ sample_x)
+    
+    # Grab OLS coefficients
+    intercept.estimate <- sim.lm$coefficients[1]
+    beta1.estimate <- sim.lm$coefficients[2]
+    
+    # Plot regression line through data
+    plot(sample_x, sample_y)
+    abline(intercept.estimate, beta1.estimate, lwd = 5, col = "red")
+    
+    # Part (i)
+    print("Prediction at:")
+    print(y_hat.locations$sample_x)
+    print(" is ")
+    print(predict.lm(sim.lm, y_hat.locations, interval = "prediction"))
+    
+    # Part (ii)
+    print("Confidence interval of coefficients:")
+    print(confint(sim.lm, c("(Intercept)", "sample_x"), level = 0.95))
+    
+    # Part (iii)
+    s <- summary(sim.lm)
+    residuals <- s$residuals
+    mse <- mean(residuals^2)
+    print(sprintf("MSE: %f", mse))
+  
+    # Part (iv)
+    p.prime <- 2
+    n <- length(sample_x)
+    res.df <- n - p.prime
+    alpha <- 0.05
+    
+    
+    intercept.se <- s$coefficients[1,2]
+    intercept.t.val <- (intercept.estimate - 0) / intercept.se 
+    #intercept.t.val <- s$coefficients[1,3]
+    intercept.p.val <- 2 * pt(abs(intercept.t.val), res.df, lower.tail = FALSE)
+    #intercept.p.val <- s$coefficients[1,4]
+    if (intercept.p.val < alpha) {
+      print(sprintf("Intercept IS significant at the %.3f level", alpha))
+    } else {
+      print(sprintf("Intercept IS NOT significant at the %.3f level", alpha))
+    }
+    
+    
+    beta1.se <- s$coefficients[2,2]
+    beta1.t.val <- (beta1.estimate - 0) / beta1.se 
+    #beta1.t.val <- s$coefficients[2,3]
+    beta1.p.val <- 2 * pt(abs(beta1.t.val), res.df, lower.tail = FALSE)
+    #beta1.p.val <- s$coefficients[2,4]
+    if (beta1.p.val < alpha) {
+      print(sprintf("Slope IS significant at the %.3f level", alpha))
+    } else {
+      print(sprintf("Slope IS NOT significant at the %.3f level", alpha))
+    }
     ```
+
+        iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated -- just whether they are violated to such an extent that your ability to use the model is compromised)
+        
+        
 
 __Aside:__ Many of the issues you end up facing with a nonlinear relationship can also be seen if an important predictor is excluded from the model. If you have extra time, feel free to play with this issue as well (optional).
 
-2.	Non-normal errors
-    a.	Simulate errors from a variety of different non-normal distributions (e.g. gamma, poisson). Make sure to shift the errors over so that they are still centered at 0.
-    b.	Try simulations with a small sample size (e.g. 20), a medium sample size (e.g. n= 100), and a large sample size (e.g. n = 5000). 
-    c.	For each simulation, 
-        i.	Predict y-hat at several different locations using a confidence interval.
-        ii.	Predict the beta coefficients for a linear model using a confidence interval. 
-        iii. Find the MSE (to estimate sigma^2)
-        iv. Test to see whether the beta(s) are significant (t-tests)
-    d. Which of the above tasks were affected by the violation of assumptions?
-    e. After you have experimented with the effects of different model structures, true parameter values, and sample sizes, let's repeat the simulation but test yourself to see whether you can detect non-normality.
-        i. Have R randomly choose whether to simulate data with normal or nonnormal errors
-        ii. Simulate data accordingly and display informal/ formal diagnostics as appropriate.
-        iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated-- just whether they are violated to such an extent that your ability to use the model is compromised)
+## Question 2	(Non-normal errors)
+
+### A
 
 ```{r}
-# Sample code to get started
+set.seed(99)
+# gamma
 n <- 200
 b0 <- 10
 b1 <- 2
 eps_alpha <- 2
 eps_beta <- 1/4
-
 
 x <- runif(n, 0, 10)
 eps <- (rgamma(n, eps_alpha, 1/eps_beta) - eps_alpha * eps_beta) * 2
@@ -175,36 +238,342 @@ hist(eps)
 var(eps)
 mean(eps)
 
+# poisson
+n <- 200
+lambda <- 50
+
+x <- runif(n, 0, 10)
+eps <- (rpois(n, lambda) - lambda) * 2
+y <- b0 - b1 * x + eps
+
+hist(eps)
+var(eps)
+mean(eps)
 ```
+
+### B
+
+```{r}
+# gamma
+generateGamma <- function (n, x, b0, b1) {
+  eps_alpha <- 2
+  eps_beta <- 1/4
+  eps <- (rgamma(n, eps_alpha, 1/eps_beta) - eps_alpha * eps_beta) * 2
+  # variance is alpha * beta^2 * 2^2: 0.5
+  y <- b0 + b1 * x + eps
+  return(y)
+}
+
+# poisson
+generatePoisson <- function (n, x, b0, b1) {
+  lambda <- 50
+  eps <- (rpois(n, lambda) - lambda) * 2
+  # variance is lambda * 2^2: 200
+  y <- b0 + b1 * x + eps
+  return(y)
+}
+
+# normal
+generateNormal <- function (n, x, b0, b1) {
+  sd <- 1
+  eps <- (rnorm(n, 0, sd)) * 2
+  # variance is sd^2 * 2^2: 4
+  y <- b0 + b1 * x + eps
+  return(y)
+}
+```
+
+```{r}
+set.seed(99)
+b0 <- 10
+b1 <- 2
+
+# 20
+n <- 20
+x.20 <- runif(n, 0, 10)
+pois.20 <- generatePoisson(n, x.20, b0, b1)
+gamma.20 <- generateGamma(n, x.20, b0, b1)
+
+
+# 100
+n <- 100
+x.100 <- runif(n, 0, 10)
+pois.100 <- generatePoisson(n, x.100, b0, b1)
+gamma.100 <- generateGamma(n, x.100, b0, b1)
+
+# 5000
+n <- 5000
+x.5000 <- runif(n, 0, 10)
+pois.5000 <- generatePoisson(n, x.5000, b0, b1)
+gamma.5000 <- generateGamma(n, x.5000, b0, b1)
+```
+
+### C
+
+```{r}
+set.seed(99)
+probB <- function (xylist) {
+  for (xy in xylist) {
+    yname <- colnames(xy)[2]
+    colnames(xy) <- c('x','y')
+    #ii.
+    model.fit <- lm(y~x, xy)
+    #i.
+    preds <- predict(model.fit, data.frame(x=c(1,3,5,50)), interval='confidence')
+    # iii.
+    predMSE <- anova(model.fit)[2,3]
+    # iv.
+    betas <- summary(model.fit)$coefficients[,c(1,3,4)]
+    # confint for betas
+    betarange <- confint(model.fit, level=0.95)
+    # output
+    print(yname)
+    print('Predicted Betas with t-values and confidence intervals:')
+    print(betas)
+    print(betarange)
+    print('Predicted values for x=1,3,5,50 (the expected values are 12, 16, 20, 110):')
+    print(preds)
+    print('MSE:')
+    print(predMSE)
+  }
+}
+
+print('Expected Variance of the Gamma distribution is 0.5 & Expected Variance of the Poisson distribution is 200')
+
+print('Real B0 is 10 & B1 is 2')
+
+xylist <- list(data.frame(x.20, pois.20), data.frame(x.20, gamma.20), data.frame(x.100, pois.100), data.frame(x.100, gamma.100), data.frame(x.5000, pois.5000), data.frame(x.5000, gamma.5000))
+
+probB(xylist)
+```
+
+### D
+
+* The betas are way off for small sample sizes, however the 95% confidence intervals always contain the true ones.
+* The computed MSE is always relatively close to the actual variance of the errors.
+* The y_hat's are close to the expected y's and always in y_hat's 95% confidence interval.
+* The coefficients are a little bit lower for the Poisson distributions due to the skewness.
+* Low sample sizes are most affected by the non-normal errors.
+
+### E
+
+```{r}
+set.seed(99)
+
+generateRandom <- function (n, x) {
+  decision <- runif(1,0,1)
+  print(decision)
+  b0 <- 10
+  b1 <- .5
+  if (decision < 0.33) {
+    return(generateNormal(n,x,b0,b1))
+  } else if (decision < 0.66) {
+    return(generatePoisson(n,x,b0,b1))
+  } else {
+    return(generateGamma(n,x,b0,b1))
+  }
+}
+
+n <- 100
+x <- runif(n, 0, 10)
+y <- generateRandom(n, x)
+model.fit <- lm(y~x)
+summary(model.fit)$coefficients[,c(1,3,4)] # betas
+confint(model.fit) # betas confidence interval
+anova(model.fit)[2,3] # MSE
+plot(model.fit, which=2) # plot
+```
+
+* The coefficients are almost exact.
+* MSE is very low - matches the variance of the generating function for normal eps.
+* The Normal Q-Q plot appears to have normally distributed residuals.
+
+```{r}
+y <- generateRandom(n, x)
+model.fit <- lm(y~x)
+summary(model.fit)$coefficients[,c(1,3,4)] # betas
+confint(model.fit) # betas confidence interval
+anova(model.fit)[2,3] # MSE
+plot(model.fit, which=2) # plot
+```
+
+With the non-normal model, the Normal Q-Q plot shows the tails of the residual going up, however the betas are largely non-affected and the MSE is essentially what it should be. Outside of looking at the Normal Q-Q plot, non-normality in the errors is largely not detectable as long as it has a mean of 0. If I had more time, I would standardize the amount of variance for each eps generating function so I can isolate the effects of non-normality from the effects of high variance.
         
-3. Heterogeneous Variances
+## Question 3 (Heterogeneous Variances)
     a.	Simulate errors from a variety of different relationships with X (e.g. eps = 2 * sqrt(x))
     b.	Try simulations with a small sample size (e.g. 20), a medium sample size (e.g. n= 100), and a large sample size (e.g. n = 5000). 
     c.	For each simulation, 
         i.	Predict y-hat at several different locations using a confidence interval.
-        ii.	Predict the beta coefficients for a linear model using a confidence interval. 
-        iii. Find the MSE (to estimate sigma^2-- does that even make sense here?)
-        iv. Test to see whether the beta(s) are significant (t-tests)
-    d. Which of the above tasks were affected by the violation of assumptions?
-    e. After you have experimented with the effects of different model structures, true parameter values, and sample sizes, let's repeat the simulation but test yourself to see whether you can detect heteroskedacity.
-        i. Have R randomly choose whether to simulate errors with constant or non-constant variance
-        ii. Simulate data accordingly and display informal/ formal diagnostics as appropriate.
-        iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated-- just whether they are violated to such an extent that your ability to use the model is compromised)
-        
-```{r}
-# Sample code to get started
-n <- 200
-b0 <- 10
-b1 <- 10
 
+        ii.	Predict the beta coefficients for a linear model using a confidence interval.
+
+        iii. Find the MSE (to estimate sigma^2-- does that even make sense here?)
+
+        iv. Test to see whether the beta(s) are significant (t-tests)
+```{r}
+set.seed(5)
+
+list = c(20,200,5000)
+paste("///////////////", "eps sd = e^x","///////////////" )
+print("")
+for (n in list){
 x <- runif(n, 0, 10)
-eps <- rnorm(n, sd = 0.5 * x^2)
+eps <- rnorm(n, sd =  exp(1)^x)
 y <- b0 + b1 * x + eps
+#(hist(eps))
+data_new <- as.data.frame(cbind(x,y))
+colnames(data_new) <- c("x_var", "y")
+fit1 <- lm(y~x_var, data = data_new)
+summary(fit1)
+print(paste("with sample size = ", n))
+MSE <- anova(fit1)[2,3]
+print(" i. Predict y-hat at several different locations using a confidence interval.")
+print(predict(fit1,data.frame(x_var = c(1,5,2)), interval="confidence"))
+print("ii. Predict the beta coefficients w/ confidence interval.")
+summary(fit1)
+print(confint(fit1))
+print("iii. Find the MSE")
+MSE <- anova(fit1)[2,3]
+print(paste("MSE = ",MSE))
+print("iv. Test to see whether the beta(s) are significant (t-tests)")
+print(summary(fit1)$coefficients[,c(3,4)])
+}
+
+#with another error dist
+paste("///////////////", "eps sd = x^3","///////////////" )
+print("")
+set.seed(5)
+list = c(20,200,5000)
+
+for (n in list){
+x <- runif(n, 0, 10)
+eps <- rnorm(n, sd =  x^3)
+y <- b0 + b1 * x + eps
+#(hist(eps))
+data_new <- as.data.frame(cbind(x,y))
+colnames(data_new) <- c("x_var", "y")
+fit1 <- lm(y~x_var, data = data_new)
+summary(fit1)
+print(paste("with sample size = ", n))
+print(" i. Predict y-hat at several different locations using a confidence interval.")
+print(predict(fit1,data.frame(x_var = c(1,5,2)), interval="confidence"))
+print("ii. Predict the beta coefficients w/ confidence interval.")
+summary(fit1)
+print(confint(fit1))
+print("iii. Find the MSE")
+MSE <- anova(fit1)[2,3]
+print(paste("MSE = ",MSE))
+print("iv. Test to see whether the beta(s) are significant (t-tests)")
+print(summary(fit1)$coefficients[,c(3,4)])
+}
 
 ```
 
+    d. Which of the above tasks were affected by the violation of assumptions?
 
-4. Correlated Errors
+-the MSE is VERY large. Clearly was affected
+-the confidence intervals for our y-hat predictions were all over the place.
+-In addition the beta coefficients were not close to the true values. The b1 coeficcient was significant when n = 5000 though.
+-In conclusion. All of the tasks were affected, but seemed to be not as bad the larger our sample size was.
+
+    e. After you have experimented with the effects of different model structures, true parameter values, and sample sizes, let's repeat the simulation but test yourself to see whether you can detect heteroskedacity.
+    
+```{r}
+par(mfrow = c(3,1))
+set.seed(5)
+library(lmtest)
+
+list = c(20,200,5000)
+paste("///////////////", "eps sd = e^x","///////////////" )
+print("")
+for (n in list){
+x <- runif(n, 0, 10)
+eps <- rnorm(n, sd =  exp(1)^x)
+y <- b0 + b1 * x + eps
+#(hist(eps))
+data_new <- as.data.frame(cbind(x,y))
+colnames(data_new) <- c("x_var", "y")
+fit1 <- lm(y~x_var, data = data_new)
+summary(fit1)
+print(paste("with sample size = ", n))
+#informal
+plot(fit1, which = 1)
+
+#formal test
+print(bptest(fit1))
+}
+
+#with another error dist
+paste("///////////////", "eps sd = x^3","///////////////" )
+print("")
+set.seed(5)
+list = c(20,200,5000)
+par(mfrow = c(3,1))
+for (n in list){
+x <- runif(n, 0, 10)
+eps <- rnorm(n, sd =  x^3)
+y <- b0 + b1 * x + eps
+#(hist(eps))
+data_new <- as.data.frame(cbind(x,y))
+colnames(data_new) <- c("x_var", "y")
+fit1 <- lm(y~x_var, data = data_new)
+summary(fit1)
+print(paste("with sample size = ", n))
+#informal
+plot(fit1, which = 1)
+
+#formal test
+print(bptest(fit1))
+}
+
+
+
+
+```
+-cleary there is non-constant variance present. (resid vs fitted plot "fans")
+-really small p-value for all, so we reject the null and determine that there is significant heteroskedacity.
+
+        i. Have R randomly choose whether to simulate errors with constant or non-constant variance
+
+
+        ii. Simulate data accordingly and display informal/ formal diagnostics as appropriate.
+
+        iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated-- just whether they are violated to such an extent that your ability to use the model is compromised)
+        
+        
+```{r}
+yes_func <- function (n) {
+  #n<- 200
+  x <- runif(n, 0, 10)
+  eps <- rnorm(n, sd =  exp(1)^x)
+  y <- b0 + b1 * x + eps
+  fit <- lm(y~x)
+  #informal
+  plot(fit, which = 1)
+  #formal
+  x <- bptest(fit)[4]
+  ifelse(x < .05, return("pvalue is below .05. Non constant variance present"), return("everything is fine!"))
+
+}
+
+no_func <- function (n) {
+  #n<- 200
+  x <- runif(n, 0, 10)
+  eps <- rnorm(n, sd =  x)
+  y <- b0 + b1 * x + eps
+  fit <- lm(y~x)
+  #informal
+  plot(fit, which = 1)
+  #formal
+  x <- bptest(fit)[4]
+  ifelse(x < .05, return("We predict model is comprimised"), return("everything is probably ok"))
+}
+
+ifelse(runif(1,0,1) > .5,yes_func(200), no_func(200) )
+```
+
+
+## Question 4 (Correlated Errors)
     a.	Simulate errors from a variety of different correlation structures.
     b.	Try simulations with a small sample size (e.g. 20), a medium sample size (e.g. n= 100), and a large sample size (e.g. n = 5000). 
     c.	For each simulation, 
@@ -219,61 +588,312 @@ y <- b0 + b1 * x + eps
         iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated-- just whether they are violated to such an extent that your ability to use the model is compromised)
 
 ```{r}
-# Sample code to get started
-n <- 200
+set.seed(1234)
+#values of true betas and sigma
 b0 <- 10
 b1 <- 10
-rho <- 0.9
 sigma <- 2
 
-x <- runif(n, 0, 10)
+simulations <- function(n,rho){
+#initialize percentages
+bad_yhat = 0
+beta1p = 0
+beta0p = 0
+msq = 0
+pvalb0 = 0
+pvalb1 = 0
 
-eps <- arima.sim(model = list(ar = rho), n = n)
-
-y <- b0 + b1 * x + eps
-
-# OR...
-
-eps <- rep(0, n)
-e.ind <- rnorm(n, mean = 0, sd = (sigma / sqrt(1-rho^2)))
-eps[1] <- e.ind[1]
-for (i in 2:n) {
-  eps[i] <- rho * eps[i-1] + e.ind[i]
+for (i in 1:100){
+  x <- runif(n, 0, 10)
+  newx <- runif(20,0,10)
+  eps <- rep(0, n)
+  e.ind <- rnorm(n, mean = 0, sd = (sigma / sqrt(1-rho^2)))
+  eps[1] <- e.ind[1]
+  for (i in 2:n) {
+    eps[i] <- rho * eps[i-1] + e.ind[i]
+  }
+  y <- b0 + b1 * x + eps
+  
+  lm.err <- lm(y~x)
+  
+  testmodel <- b0 + b1 * newx
+  
+  
+  y_hat_ci <- predict(lm.err, newdata = data.frame(x = I(newx)), interval = "confidence")
+  bad_yhat <- 20 - sum((testmodel >= y_hat_ci[,2]) & (testmodel <= y_hat_ci[,3]))
+  
+  
+  beta1ci <- confint(lm.err, "x",level=.95 )
+  if(b1 > beta1ci[1] & b1 < beta1ci[2]){
+    beta1p <- beta1p + 1
+  }
+  beta0ci <- confint(lm.err,"(Intercept)",level=.95)
+  if(b1 > beta0ci[1] & b1 < beta0ci[2]){
+    beta0p <- beta0p + 1
+  }
+  #take average of MSE 
+  anov <- anova(lm.err)
+  msq <- msq + anov$`Mean Sq`[2]
+  
+  #check if b0 is significant 
+  summ <- summary(lm.err)$coefficients[,4]
+  if (summ[1]< .05){
+    pvalb0 <- pvalb0 + 1
+  }
+  
+  #check if b1 is significant
+  if (summ[2] < .05){
+    pvalb1 <- pvalb1 + 1
+  }
+  
+  
 }
 
-y <- b0 + b1 * x + eps
+#return percentage of simulations that captured true paramater in confidence interval
+results <- data.frame(bad_yhat/100,
+                      beta1p/100,
+                      beta0p/100,
+                      msq/100,
+                      pvalb0/100,
+                      pvalb1/100)
+
+return(results)
+
+}
+
+#Samples with rho = .3
+small_samp1 = simulations(20, .3)
+med_samp1=simulations(100, .3)
+lrg_samp1=simulations(5000, .3)
+small_rho <- matrix(c(small_samp1, med_samp1,lrg_samp1),byrow=T, nrow=3)
+colnames(small_rho) <-c("bad_yhat","beta1","beta0","avg mse","pvalb0","pvalb1")
+rownames(small_rho) <-c("small sample", "medium sample", "large sample")
+small_rho
+#samples with rho=.9
+small_samp2 = simulations(20, .9)
+med_samp2=simulations(100, .9)
+lrg_samp2=simulations(5000, .9)
+large_rho <- matrix(c(small_samp2, med_samp2,lrg_samp2),byrow=T, nrow=3)
+colnames(large_rho) <-c("bad_yhat","beta1","beta0","avg mse","pvalb0","pvalb1")
+rownames(large_rho) <-c("small sample", "medium sample", "large sample")
+large_rho
+
+
+
+
+
+
 ```
-        
-5. Multicollinearity
-    a.	Simulate predictors that are correlated with a variety of different correlation structures
-    b.	Try simulations with a small sample size (e.g. 20), a medium sample size (e.g. n= 100), and a large sample size (e.g. n = 5000). 
-    c.	For each simulation, 
-        i.	Predict y-hat at several different locations using a confidence interval.
-        ii.	Predict the beta coefficients for a linear model using a confidence interval. 
-        iii. Find the MSE (to estimate sigma^2)
-        iv. Test to see whether the beta(s) are significant (t-tests)
-    d. Which of the above tasks were affected by the violation of assumptions?
-    e. After you have experimented with the effects of different model structures, true parameter values, and sample sizes, let's repeat the simulation but test yourself to see whether you can detect collinearity.
-        i. Have R randomly choose whether to simulate data with correlated or uncorrelated predictor variables (X).
-        ii. Simulate data accordingly and display informal/ formal diagnostics as appropriate.
-        iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated-- just whether they are violated to such an extent that your ability to use the model is compromised)
+D) I compared the different sample sizes with two different values of Rho. When Rho = .9, yhat failed to be in the confidence interval almost 20% of the time for the small and large sample. Also, the average MSE was far greater than $\sigma^2$. The ratio of simulations that failed to capture the true intercept was greater than 39% at each sample size level. Another violation appeared in the ratio of simulations that found the intercept to be insignificant, in the small and medium sample sizes this condition was violated over 9% of the time. Despite these violations, the ratio of simulations that failed to include the true value of $\beta_{1}$ was 0% for both levels of Rho. 
+
+E)
+```{r}
+set.seed(12)
+rho_vec <- c(0, .8)
+#choose random value of rho
+rho <- sample(rho_vec,1)
+
+
+  x <- runif(n, 0, 10)
+  newx <- runif(n,0,10)
+  eps <- rep(0, n)
+  e.ind <- rnorm(n, mean = 0, sd = (sigma / sqrt(1-rho^2)))
+  eps[1] <- e.ind[1]
+  for (i in 2:n) {
+    eps[i] <- rho * eps[i-1] + e.ind[i]
+  }
+  y <- b0 + b1 * x + eps
+  
+  lm.random <- lm(y~x)
+  
+  plot(lm.random)
+  plot(1:n, residuals(lm.random))
+  
+
+
+
+```
+
+Given the plot of the residuals, it appears that the error terms are not correlated so problem areas in part d will not be affected. 
+     
+## Question 5 (Multicollinearity)
+
+# a. Simulate predictors that are correlated with a variety of different correlation structures
+
+```{r simulation}
+n = 5000
+a = rnorm(n)
+b = 1 + a
+c = 2 + rnorm(n) + 2 * a
+summary(lm(c ~ b + a))
+```
+```{r}
+n = 5000
+a = rnorm(n)
+b = 2 * a
+c = 2 + rnorm(n) + 2 * a
+summary(lm(c ~ b + a))
+```
+
+
+# b. Try simulations with a small sample size (e.g. 20), a medium sample size (e.g. n= 100), and a large sample size (e.g. n = 5000).
 
 ```{r}
-n <- 20
-b0 <- 10
-b1 <- 3
-b2 <- 7
-
-simga <- 2
-
-x1 <- runif(n, 0, 10)
-x2 <- x1 + rnorm(n)
-cor(x1, x2)
-
-
-eps <- rnorm(n, sd = sigma)
-y <- b0 + b1 * x1 + b2 * x2 + eps
+n = 20
+a = rnorm(n)
+b = 1 + a
+c = 2 + rnorm(n) + 2 * a
+model_20 <- lm(c ~ b + a) 
+summary(model_20)
 ```
+
+```{r}
+n = 100
+a = rnorm(n)
+b = 1 + a
+c = 2 + rnorm(n) + 2 * a
+model_100 <- lm(c ~ b + a) 
+summary(model_100)
+```
+
+```{r}
+n = 5000
+a = rnorm(n)
+b = 1 + a
+c = 2 + rnorm(n) + 2 * a
+model_5000 <- lm(c ~ b + a)
+summary(model_5000)
+```
+
+
+# c. For each simulation,
+## i. Predict y-hat at several different locations using a confidence interval.
+```{r}
+prediction_points <- matrix(c(-2,  -3,
+                              -0.5, 2,
+                               0,   0,
+                               4,   5), ncol=2)
+prediction_points <- data.frame(prediction_points)
+colnames(prediction_points) <- c("a", "b")
+predict.lm(model_20, newdata = prediction_points, interval = "prediction")
+```
+
+```{r}
+prediction_points <- matrix(c(-2,  -3,
+                              -0.5, 2,
+                               0,   0,
+                               4,   5), ncol=2)
+prediction_points <- data.frame(prediction_points)
+colnames(prediction_points) <- c("a", "b")
+predict.lm(model_100, newdata = prediction_points, interval = "prediction")
+```
+
+```{r}
+prediction_points <- matrix(c(-2,  -3,
+                              -0.5, 2,
+                               0,   0,
+                               4,   5), ncol=2)
+prediction_points <- data.frame(prediction_points)
+colnames(prediction_points) <- c("a", "b")
+predict.lm(model_5000, newdata = prediction_points, interval = "prediction")
+```
+
+
+## ii. Predict the beta coefficients for a linear model using a confidence interval.
+
+```{r}
+confint(model_20)
+confint(model_100)
+confint(model_5000)
+```
+
+## iii. Find the MSE (to estimate sigmaˆ2)
+
+```{r}
+calculate_mse <- function(model){ return (c(crossprod(model$residuals)) / length(model$residuals))}
+calculate_mse(model_20)
+calculate_mse(model_100)
+calculate_mse(model_5000)
+```
+
+## iv. Test to see whether the beta(s) are significant (t-tests)
+
+```{r}
+t_test_on_lm <- function(model){
+  return(1 - 
+    pt(coef(summary(model))[,3], 
+     df = summary(model)$df[2])
+  )
+  
+}
+t_test_on_lm(model_20)
+t_test_on_lm(model_100)
+t_test_on_lm(model_5000)
+```
+
+
+# d. Which of the above tasks were affected by the violation of assumptions?
+The betas and the MSE can vary substantially when predictor variables are highly correlated. Additionally, while predicting y-hat seemed to work out in my case, it may not be sensible to interpret predictions where correlated variables have widely different values.
+
+# e. After you have experimented with the effects of different model structures, true parameter values, and sample sizes, let’s repeat the simulation but test yourself to see whether you can detect collinearity.
+
+## i. Have R randomly choose whether to simulate data with correlated or uncorrelated predictor variables (X).
+
+```{r}
+simulate_data <- function (is_correlated) {
+  n <- 20
+  b0 <- 10
+  b1 <- 3
+  b2 <- 7
+  sigma <- 2
+  x1 <- runif(n, 0, 10)
+  x2 <- is_correlated * x1 + rnorm(n)
+  cor(x1, x2)
+  eps <- rnorm(n = n, sd = sigma)
+  y <- b0 + b1 * x1 + b2 * x2 + eps
+  return (data.frame(y, x1, x2))
+  }
+```
+
+## ii. Simulate data accordingly and display informal/ formal diagnostics as appropriate.
+
+```{r}
+run_regression <- function(data){return(lm(y ~ x1 + x2, data = data))}
+
+print("first")
+first_model <- run_regression(simulate_data(TRUE))
+first_model$coefficients
+confint(first_model)
+print("")
+
+print("second")
+second_model <- run_regression(simulate_data(FALSE))
+second_model$coefficients
+confint(second_model)
+print("")
+
+print("third")
+third_model <- run_regression(simulate_data(TRUE))
+third_model$coefficients
+confint(third_model)
+print("")
+
+print("fourth")
+fourth_model <- run_regression(simulate_data(FALSE))
+fourth_model$coefficients
+confint(fourth_model)
+```
+
+```{r}
+calculate_mse(first_model)
+calculate_mse(second_model)
+calculate_mse(third_model)
+calculate_mse(fourth_model)
+```
+
+## iii. Based on the diagnostics, predict whether the problem areas you mentioned in part d will be affected or not. (Note: You are not predicting whether the assumptions are violated– just whether they are violated to such an extent that your ability to use the model is compromised)
+
+The coefficients do not appear to exhibit much variability, and neither does the MSE. It does not appear that the ability for me to use my model is substantially compromised.
 
         
 6. Put it all together: Combine the code from the previous 5 parts. Have R randomly choose whether to generate data that violates one (or more) of the assumptions, or whether all the assumptions are valid. Show appropriate diagnostics and test yourself to see if you can predict whether there are problem areas or not. Repeat the simulation several times and record your accuracy at detecting the different problem areas.
